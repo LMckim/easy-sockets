@@ -1,4 +1,5 @@
 CC=g++
 
-main: main.cpp
-	$(CC) main.cpp -o tests/test -Wall -Wextra -g -lpthread
+test: tests/*.cpp
+	$(CC) tests/*.cpp -o tests/test -I. -Wall -Wextra -g -lpthread
+	./tests/test
