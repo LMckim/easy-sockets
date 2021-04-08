@@ -1,0 +1,11 @@
+/.vscode/
+**/__pycache__/
+
+test/cpp/bin/*
+
+!makefile
+!**.py
+!**.cpp
+!**.hpp
+
+!.keep
