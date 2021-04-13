@@ -43,11 +43,13 @@ namespace EasySocket{
     void set_protocol(Protocol _protocol);
     void set_send_buf(uint16_t _size);
     void set_recv_buf(uint16_t _size);
+    void set_raise_exceptions(bool _raise=true);
     void print_last_error();
 
     protected:
         int fd;
         bool connected = false;
+        bool raise_exception = true;
         string last_err;
 
         string host = "127.0.0.1";
@@ -63,13 +65,19 @@ namespace EasySocket{
 
         void set_last_error();
         void set_last_error(string error);
+        void raise();
+        void raise(string _except);
     };
     class EasySocket_Client : public EasySocket{
     public:
         void connect();
         void connect(string _host, string _port);
         void connect(PreHosts _host, string _port);
+        void bind();
+        void bind(string _port);
+        void set_sendto(string _host, string _port);
         void send(string _data);
+        void sendto(string _host, string _port, string _data);
         string recv();
     };
     class EasySocket_Server : public EasySocket{

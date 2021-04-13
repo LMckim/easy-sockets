@@ -16,9 +16,20 @@ map<EasySocket::PreHosts, string> prehosts = {
 
 void EasySocket::EasySocket::set_last_error(){
     this->last_err = strerror(errno);
+    if(this->raise_exception) this->raise();
 }
 void EasySocket::EasySocket::set_last_error(string error){
     this->last_err = error;
+    if(this->raise_exception) this->raise(error);
+}
+void EasySocket::EasySocket::raise(){
+    throw this->last_err;
+}
+void EasySocket::EasySocket::raise(string _except){
+    throw this->last_err + " " + _except;
+}
+void EasySocket::EasySocket::set_raise_exceptions(bool _raise){
+    this->raise_exception = _raise;
 }
 void EasySocket::EasySocket::print_last_error(){
     std::cout << this->last_err << std::endl;
@@ -75,7 +86,7 @@ void EasySocket::EasySocket_Client::connect(string _host, string _port){
     this->fd = ::socket(this->domain, this->protocol, 0);
     if(this->fd == -1){
         // TODO: error
-        this->set_last_error();
+        this->set_last_error("bind?");
     }
 
     // options applications
@@ -86,8 +97,11 @@ void EasySocket::EasySocket_Client::connect(string _host, string _port){
             return;
         }
     }
+    // UDP is connectionless so we stop here
+    if(this->protocol == Protocol::UDP) return;
 
     sockaddr_in addr;
+    memset(&addr, 0, sizeof(sockaddr_in));
     addr.sin_family = this->domain;
     addr.sin_port = htons(std::stoi(_port));
 
@@ -108,10 +122,26 @@ void EasySocket::EasySocket_Client::connect(string _host, string _port){
     // UDP socket setup
     }else if(this->protocol == Protocol::UDP){
         // TODO:
+        res = ::bind(this->fd, (sockaddr *)&addr, (socklen_t)sizeof(addr));
+        if(res == -1){
+            this->set_last_error();
+            return;
+        }
 
     }else{
         // TODO: error
     }
+}
+void EasySocket::EasySocket_Client::bind(){
+    this->bind(this->port);
+}
+void EasySocket::EasySocket_Client::bind(string _port){
+    this->port = _port;
+    this->connect(this->host, _port);
+}
+void EasySocket::EasySocket_Client::set_sendto(string _host, string _port){
+    this->host = _host;
+    this->port = _port;
 }
 void EasySocket::EasySocket_Client::send(string _data){
     // TODO: handle for UDP
@@ -120,12 +150,27 @@ void EasySocket::EasySocket_Client::send(string _data){
     char send_buf[this->send_buf_size];
     memset(send_buf, '\0', sizeof(send_buf));
     strcpy(send_buf, _data.c_str());
-    // TODO: flags
-    // TODO: full send
-    res = ::send(this->fd, send_buf, sizeof(send_buf), 0);
-    if(res == -1){
-        this->set_last_error();
-    }
+
+    if(this->protocol == Protocol::TCP){
+        // TODO: flags
+        // TODO: full send
+        res = ::send(this->fd, send_buf, sizeof(send_buf), 0);
+        if(res == -1){
+            this->set_last_error();
+        }
+    }else if(this->protocol == Protocol::UDP){
+        std::cout << "udp\n";
+        sockaddr_in addr;
+        memset(&addr, 0, sizeof(sockaddr_in));
+        addr.sin_family = this->domain;
+        addr.sin_port = htons(std::stoi(this->port));
+        addr.sin_addr.s_addr = INADDR_ANY;
+
+        res = ::sendto(this->fd, send_buf, sizeof(send_buf), MSG_CONFIRM, (sockaddr *)&addr, sizeof(sockaddr));
+        if(res == -1){
+            this->set_last_error("send to");
+        }
+    }   
 }
 string EasySocket::EasySocket_Client::recv(){
     // TODO: handle for UDP

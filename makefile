@@ -1,7 +1,7 @@
 CC=g++
 
 test: test/cpp/test.cpp include/easysocket.cpp
-	$(CC) \
+	@$(CC) \
 	test/cpp/test.cpp \
 	include/easysocket.cpp \
 	-o test/cpp/bin/test_easysocket \
