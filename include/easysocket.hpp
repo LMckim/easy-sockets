@@ -1,5 +1,6 @@
 #pragma once
-
+#ifndef EE_SOCK_H
+#define EE_SOCK_H
 #include <functional>
 #include <map>
 #include <string>
@@ -61,6 +62,11 @@ namespace EasySocket{
         uint16_t send_buf_size = MAX_TRANSMISSION_UNIT;
         uint16_t recv_buf_size = MAX_TRANSMISSION_UNIT;
 
+        map<PreHosts, string> prehosts = {
+            {PreHosts::LOCAL, "127.0.0.1"},
+            {PreHosts::ANY, "0.0.0.0"}  
+        };
+
         // options
         bool reuse = true;
 
@@ -103,3 +109,4 @@ namespace EasySocket{
 
     };
 }
+#endif
