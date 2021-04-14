@@ -1,6 +1,7 @@
 #include "easysocket.hpp"
 
 #include <arpa/inet.h>
+#include <netdb.h>
 #include <errno.h>
 #include <iostream>
 #include <string.h>
@@ -13,7 +14,7 @@ map<EasySocket::PreHosts, string> prehosts = {
     {EasySocket::PreHosts::LOCAL, "127.0.0.1"},
     {EasySocket::PreHosts::ANY, "0.0.0.0"}  
 };
-
+/////////////////// BASE ///////////////////
 void EasySocket::EasySocket::set_last_error(){
     this->last_err = strerror(errno);
     if(this->raise_exception) this->raise();
@@ -68,13 +69,14 @@ void EasySocket::EasySocket::set_recv_buf(uint16_t _size){
         this->set_last_error("Cannot change recv buffer sizewhen already connected");
     }
 }
-void EasySocket::EasySocket_Client::connect(){
+/////////////////// CLIENT /////////////////// 
+void EasySocket::Client::connect(){
     this->connect(this->host, this->port);
 }
-void EasySocket::EasySocket_Client::connect(PreHosts _host, string _port){
+void EasySocket::Client::connect(PreHosts _host, string _port){
     this->connect(prehosts[_host], _port);
 }
-void EasySocket::EasySocket_Client::connect(string _host, string _port){
+void EasySocket::Client::connect(string _host, string _port){
     if(_port == "0"){
         // TODO: error
         this->set_last_error();
@@ -103,6 +105,7 @@ void EasySocket::EasySocket_Client::connect(string _host, string _port){
     sockaddr_in addr;
     memset(&addr, 0, sizeof(sockaddr_in));
     addr.sin_family = this->domain;
+    // TODO: Allow port to be set via service?
     addr.sin_port = htons(std::stoi(_port));
 
     res = inet_pton(this->domain, _host.c_str(), &addr.sin_addr);
@@ -132,18 +135,18 @@ void EasySocket::EasySocket_Client::connect(string _host, string _port){
         // TODO: error
     }
 }
-void EasySocket::EasySocket_Client::bind(){
+void EasySocket::Client::bind(){
     this->bind(this->port);
 }
-void EasySocket::EasySocket_Client::bind(string _port){
+void EasySocket::Client::bind(string _port){
     this->port = _port;
     this->connect(this->host, _port);
 }
-void EasySocket::EasySocket_Client::set_sendto(string _host, string _port){
+void EasySocket::Client::set_sendto(string _host, string _port){
     this->host = _host;
     this->port = _port;
 }
-void EasySocket::EasySocket_Client::send(string _data){
+void EasySocket::Client::send(string _data){
     // TODO: handle for UDP
     int res, len = _data.size(), offset = 0;
     // TODO: hmmmmm probably shouldnt be allocating each send
@@ -172,7 +175,7 @@ void EasySocket::EasySocket_Client::send(string _data){
         }
     }   
 }
-string EasySocket::EasySocket_Client::recv(){
+string EasySocket::Client::recv(){
     // TODO: handle for UDP
     int res;
     char recv_buf[this->recv_buf_size];
@@ -187,4 +190,85 @@ string EasySocket::EasySocket_Client::recv(){
         this->set_last_error();
     }
     return string(recv_buf);
+}
+/////////////////// SERVER ///////////////////
+void EasySocket::Server::connect(){
+    this->connect(this->host, this->port);
+}
+void EasySocket::Server::connect(PreHosts _host, string _port){
+    this->connect(prehosts[_host], _port);
+}
+void EasySocket::Server::connect(string _host, string _port){
+    addrinfo hints, *servinfo, *p;
+    int yes = 1, res;
+    memset(&hints, 0, sizeof(addrinfo));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = this->protocol;
+    hints.ai_flags = AI_PASSIVE;
+
+    res = getaddrinfo(NULL, _port.c_str(), &hints, &servinfo);
+    if(res !=0){
+        this->set_last_error();
+        std::cout << "FUCK1 " << res << std::endl;
+        exit(0);
+    }
+
+    for(p = servinfo; p != nullptr; p = p->ai_next){
+        this->fd = ::socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+        if(this->fd == -1){
+            this->set_last_error();
+            std::cout << "FUCK2" << std::endl;
+        }
+        // TODO: Error check
+        res = ::setsockopt(this->fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
+        res = ::bind(this->fd, p->ai_addr, p->ai_addrlen);
+        if(res == -1){
+            this->set_last_error();
+            std::cout << "FUCK3 " << res << std::endl;
+            ::close(this->fd);
+            continue;
+        }
+        break;
+    }
+
+    res = ::listen(this->fd, this->backlog);
+}
+void EasySocket::Server::send(int _fd, string _data){
+    int res = ::send(_fd, _data.c_str(), _data.length(), 0);
+
+}
+void EasySocket::Server::respond_with(string _data){
+    char recv_buf[this->recv_buf_size];
+    int last_bytes;
+    memset(recv_buf, '\0', this->recv_buf_size);
+    sockaddr_storage theirs;
+    socklen_t t_size;
+    while(true){
+        // TODO: Flags, err
+        int in_fd = ::accept(this->fd, (sockaddr*)&theirs, (socklen_t*)&t_size);
+        last_bytes = ::recv(this->fd, recv_buf, this->recv_buf_size, 0);
+        std::cout << recv_buf << std::endl;
+        this->send(in_fd, _data);
+        memset(recv_buf, '\0', this->recv_buf_size);
+    }
+}
+void EasySocket::Server::respond_with(void (*_func)(Server&, string)){
+    char recv_buf[this->recv_buf_size];
+    int last_bytes;
+    memset(recv_buf, '\0', this->recv_buf_size);
+    while(true){
+        // TODO: Flags
+        last_bytes = ::recv(this->fd, recv_buf, this->recv_buf_size, 0);
+        _func(*this, string(recv_buf));
+        memset(recv_buf, '\0', this->recv_buf_size);
+    }
+}
+string EasySocket::Server::recv(){
+
+}
+void EasySocket::Server::recv_into(string &_str){
+
+}
+void EasySocket::Server::recv_into(char *_buf, const int _buf_len){
+
 }

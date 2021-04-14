@@ -6,20 +6,23 @@ int main(){
     using EasySocket::Domain;
     using EasySocket::Protocol;
     using EasySocket::PreHosts;
-    using EasySocket::EasySocket_Client;
+    using EasySocket::Client;
 
     try{
-        EasySocket_Client client = EasySocket_Client();
+        Client client = Client();
         client.connect(PreHosts::LOCAL, "6555");
         for(int i=0; i < 10; i++){
             client.send("Hello World! "+std::to_string(i)+'\n');
         }
         client.close();
 
-        EasySocket_Client client_u = EasySocket_Client();
+        Client client_u = Client();
         client_u.set_protocol(Protocol::UDP);
         client_u.bind("6556");
-        client_u.send("Hello from UDP!");
+        for(int i=0; i < 10; i++){
+            client_u.send("Hello World! UDP "+std::to_string(i)+'\n');
+        }
+        client_u.close();
     }catch(std::string e){
         std::cout << e << std::endl;
     }

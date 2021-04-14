@@ -29,22 +29,21 @@ namespace EasySocket{
 
     class EasySocket{
     public:
-    EasySocket(){}
-    EasySocket(string _host, string _port) : host{_host}, port{port}{}
-    virtual ~EasySocket(){}
-    virtual void connect() = 0;
-    virtual void connect(string _host, string _port) = 0;
-    virtual void connect(PreHosts _host, string _port) = 0;
-    void close();
-    virtual void send(string _data) = 0;
-    virtual string recv() = 0;
+        EasySocket(){}
+        EasySocket(string _host, string _port) : host{_host}, port{port}{}
+        virtual ~EasySocket(){}
+        virtual void connect() = 0;
+        virtual void connect(string _host, string _port) = 0;
+        virtual void connect(PreHosts _host, string _port) = 0;
+        void close();
+        virtual string recv() = 0;
 
-    void set_domain(Domain _domain);
-    void set_protocol(Protocol _protocol);
-    void set_send_buf(uint16_t _size);
-    void set_recv_buf(uint16_t _size);
-    void set_raise_exceptions(bool _raise=true);
-    void print_last_error();
+        void set_domain(Domain _domain);
+        void set_protocol(Protocol _protocol);
+        void set_send_buf(uint16_t _size);
+        void set_recv_buf(uint16_t _size);
+        void set_raise_exceptions(bool _raise=true);
+        void print_last_error();
 
     protected:
         int fd;
@@ -68,7 +67,7 @@ namespace EasySocket{
         void raise();
         void raise(string _except);
     };
-    class EasySocket_Client : public EasySocket{
+    class Client : public EasySocket{
     public:
         void connect();
         void connect(string _host, string _port);
@@ -80,7 +79,24 @@ namespace EasySocket{
         void sendto(string _host, string _port, string _data);
         string recv();
     };
-    class EasySocket_Server : public EasySocket{
+    class Server : public EasySocket{
+    public:
+        void connect();
+        void connect(string _host, string _port);
+        void connect(PreHosts _host, string _port);
+        /// TODO: hmmmm about these?
+        void send(int fd, string _data);
+        void respond_with(string _data);
+        void respond_with(void (*_func)(Server&, string));
+        string recv();
+        void recv_into(string &_str);
+        void recv_into(char *_buf, const int _buf_len);
+        
+
+
+    protected:
+        int backlog = 10;
+        
 
     };
 }
