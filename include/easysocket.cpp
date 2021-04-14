@@ -1,14 +1,19 @@
-#include "easysocket.hpp"
 
 #include <arpa/inet.h>
+#include <iostream>
 #include <netdb.h>
 #include <errno.h>
-#include <iostream>
 #include <string.h>
+#include <thread>
 #include <unistd.h>
+#include <vector>
+
+#include "include/easysocket.hpp"
 
 using std::map;
 using std::string;
+using std::thread;
+using std::vector;
 
 map<EasySocket::PreHosts, string> prehosts = {
     {EasySocket::PreHosts::LOCAL, "127.0.0.1"},
@@ -17,6 +22,7 @@ map<EasySocket::PreHosts, string> prehosts = {
 /////////////////// BASE ///////////////////
 void EasySocket::EasySocket::set_last_error(){
     this->last_err = strerror(errno);
+    std::cout << this->last_err << std::endl;
     if(this->raise_exception) this->raise();
 }
 void EasySocket::EasySocket::set_last_error(string error){
@@ -212,7 +218,7 @@ void EasySocket::Server::connect(string _host, string _port){
         std::cout << "FUCK1 " << res << std::endl;
         exit(0);
     }
-
+    // cycle through connections for a good one
     for(p = servinfo; p != nullptr; p = p->ai_next){
         this->fd = ::socket(p->ai_family, p->ai_socktype, p->ai_protocol);
         if(this->fd == -1){
@@ -230,14 +236,22 @@ void EasySocket::Server::connect(string _host, string _port){
         }
         break;
     }
-
+    // connect and listen to the socket
     res = ::listen(this->fd, this->backlog);
 }
 void EasySocket::Server::send(int _fd, string _data){
-    int res = ::send(_fd, _data.c_str(), _data.length(), 0);
+    int sent = 0;
+    while(sent < _data.length()){
+        sent = ::send(_fd, _data.c_str(), _data.length(), 0);
+        if(sent == -1){
+            this->set_last_error();
+        }
+    }
+    ::close(_fd);
 
 }
 void EasySocket::Server::respond_with(string _data){
+    vector<thread> prev_conns;
     char recv_buf[this->recv_buf_size];
     int last_bytes;
     memset(recv_buf, '\0', this->recv_buf_size);
@@ -247,22 +261,55 @@ void EasySocket::Server::respond_with(string _data){
         // TODO: Flags, err
         int in_fd = ::accept(this->fd, (sockaddr*)&theirs, (socklen_t*)&t_size);
         last_bytes = ::recv(this->fd, recv_buf, this->recv_buf_size, 0);
-        std::cout << recv_buf << std::endl;
-        this->send(in_fd, _data);
+
+        prev_conns.push_back(thread(
+            &Server::send,
+            this,
+            in_fd,
+            _data
+        ));
         memset(recv_buf, '\0', this->recv_buf_size);
+        std::cout << prev_conns.size() << std::endl;
+        auto itr = prev_conns.begin();
+        while(itr != prev_conns.end()){
+            if((*itr).joinable()){
+                (*itr).join();
+                itr = prev_conns.erase(itr);
+            }else itr++;
+        }
     }
 }
-void EasySocket::Server::respond_with(void (*_func)(Server&, string)){
+void EasySocket::Server::respond_with(string (*_func)(string)){
+    vector<thread> prev_conns;
     char recv_buf[this->recv_buf_size];
     int last_bytes;
     memset(recv_buf, '\0', this->recv_buf_size);
+    sockaddr_storage theirs;
+    socklen_t t_size;
     while(true){
-        // TODO: Flags
-        last_bytes = ::recv(this->fd, recv_buf, this->recv_buf_size, 0);
-        _func(*this, string(recv_buf));
+        // TODO: Flags, err
+        int in_fd = ::accept(this->fd, (sockaddr*)&theirs, (socklen_t*)&t_size);
+        last_bytes = ::recv(in_fd, recv_buf, this->recv_buf_size, 0);
+
+        prev_conns.push_back(thread(
+            &Server::send,
+            this,
+            in_fd,
+            _func(string(recv_buf))
+        ));
         memset(recv_buf, '\0', this->recv_buf_size);
+        auto itr = prev_conns.begin();
+        while(itr != prev_conns.end()){
+            if((*itr).joinable()){
+                (*itr).join();
+                itr = prev_conns.erase(itr);
+            }else itr++;
+        }
     }
 }
+// void respond_with(std::function<void(string)>&_func){
+
+// }
 string EasySocket::Server::recv(){
 
 }

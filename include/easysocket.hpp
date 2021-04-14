@@ -1,7 +1,9 @@
 #pragma once
 
+#include <functional>
 #include <map>
 #include <string>
+
 #include <sys/socket.h>
 
 #define MAX_TRANSMISSION_UNIT 1500
@@ -87,7 +89,8 @@ namespace EasySocket{
         /// TODO: hmmmm about these?
         void send(int fd, string _data);
         void respond_with(string _data);
-        void respond_with(void (*_func)(Server&, string));
+        void respond_with(string (*_func)(string));
+        // void respond_with(std::function<void(string)>&_func);
         string recv();
         void recv_into(string &_str);
         void recv_into(char *_buf, const int _buf_len);
