@@ -33,7 +33,7 @@ namespace EasySocket{
     class EasySocket{
     public:
         EasySocket(){}
-        EasySocket(string _host, string _port) : host{_host}, port{port}{}
+        EasySocket(string _host, string _port) : host{_host}, port{_port}{}
         virtual ~EasySocket(){}
         virtual void connect() = 0;
         virtual void connect(string _host, string _port) = 0;
@@ -96,7 +96,7 @@ namespace EasySocket{
         void send(int fd, string _data);
         void respond_with(string _data);
         void respond_with(string (*_func)(string));
-        // void respond_with(std::function<void(string)>&_func);
+        void respond_with(std::function<void(Server*, string)>&_func);
         string recv();
         void recv_into(string &_str);
         void recv_into(char *_buf, const int _buf_len);

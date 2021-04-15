@@ -19,8 +19,11 @@ int main(){
         Client client_u = Client();
         client_u.set_protocol(Protocol::UDP);
         client_u.bind("6556");
+        client_u.print_last_error();
         for(int i=0; i < 10; i++){
             client_u.send("Hello World! UDP "+std::to_string(i)+'\n');
+            client_u.sendto("localhost", "6556", "Hello World! UDP "+std::to_string(i)+'\n');
+            client_u.print_last_error();
         }
         client_u.close();
     }catch(std::string e){

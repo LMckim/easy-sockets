@@ -121,9 +121,9 @@ void EasySocket::Server::respond_with(string (*_func)(string)){
         }
     }
 }
-// void respond_with(std::function<void(string)>&_func){
-
-// }
+void respond_with(std::function<void(string)>&_func){
+    
+}
 string EasySocket::Server::recv(){
 
 }

@@ -87,9 +87,49 @@ void EasySocket::Client::bind(string _port){
     this->port = _port;
     this->connect(this->host, _port);
 }
-void EasySocket::Client::set_sendto(string _host, string _port){
-    this->host = _host;
-    this->port = _port;
+void EasySocket::Client::sendto(string _host, string _port, string _data){
+    int rv, tmp_fd;
+    addrinfo hints, *servinfo, *p;
+    memset(&hints, 0, sizeof(addrinfo));
+    hints.ai_family = this->domain;
+    hints.ai_socktype = this->protocol;
+
+    if((rv = getaddrinfo(_host.c_str(), _port.c_str(), &hints, &servinfo)) != 0){
+        this->set_last_error("Could not getaddrinfo, attempting manual set");
+        // TODO: Manual set
+    }
+    // for(p=servinfo; p != nullptr; p=p->ai_next){
+    //     if((tmp_fd = ::socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1){
+    //         continue;
+    //         // TODO: Error Check
+    //     }else break;
+    // }
+    // if(p == nullptr){
+    //     // TODO: Error
+    // }
+    int sent = 0, offset = 0;
+    while((sent = ::sendto(
+        // tmp_fd, 
+        this->fd, 
+        _data.c_str()+offset, 
+        _data.size()-offset, 
+        0, 
+        servinfo->ai_addr, 
+        // p->ai_addr, 
+        // p->ai_addrlen)
+        servinfo->ai_addrlen)
+        ) < _data.size()){
+            if(sent == 0){
+                // TODO: disconnect
+                break;
+            }else if(sent == -1){
+                this->set_last_error();
+                break;
+            }
+            offset += sent;
+    }
+    // ::close(tmp_fd);
+
 }
 void EasySocket::Client::send(string _data){
     // TODO: handle for UDP
@@ -98,6 +138,24 @@ void EasySocket::Client::send(string _data){
     char send_buf[this->send_buf_size];
     memset(send_buf, '\0', sizeof(send_buf));
     strcpy(send_buf, _data.c_str());
+    int sent = 0;
+    // while(sent < len){
+    //     // TODO: Incorporate offset
+    //     if(this->protocol == Protocol::TCP){
+    //         res = ::send(this->fd, send_buf, this->send_buf_size, 0);
+    //     }else if(this->protocol == Protocol::UDP){
+    //         res = ::send(this->fd, send_buf, this->send_buf_size, 0);
+    //     }
+        
+    //     // TODO: Fix up errors
+    //     if(res == 0){
+    //         std::cout << "Gone away\n";
+    //         break;
+    //     }else if(res == -1){
+    //         std::cout << "Error on send\n";
+    //         break;
+    //     }else sent += res;
+    // }
 
     if(this->protocol == Protocol::TCP){
         // TODO: flags
@@ -107,7 +165,6 @@ void EasySocket::Client::send(string _data){
             this->set_last_error();
         }
     }else if(this->protocol == Protocol::UDP){
-        std::cout << "udp\n";
         sockaddr_in addr;
         memset(&addr, 0, sizeof(sockaddr_in));
         addr.sin_family = this->domain;
